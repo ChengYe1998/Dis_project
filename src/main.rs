@@ -9,10 +9,22 @@ struct Connection
     password : String,
 }
 
+struct Command
+{
+    sess : Session,
+    comm : String,
+}
+
 trait ConnectSsh
 {
     fn connect_ssh(&self) ->Session;
 }
+
+trait  ExCommand
+{
+    fn ex_command(&self) ->String;
+}
+
 
 impl ConnectSsh for Connection {
     fn connect_ssh(&self) ->Session {
@@ -28,19 +40,25 @@ impl ConnectSsh for Connection {
     }
 }
 
+impl ExCommand for Command {
+    fn ex_command(&self) -> String {
+        let mut channel = self.sess.channel_session().unwrap();
+        channel.exec(&self.comm).unwrap();
+        let mut s = String::new();
+        channel.read_to_string(&mut s).unwrap();
+        channel.wait_close();
+        s
+    }
+}
+
 fn main() {
     let conn = Connection{hostname : String::from("hostname:22"),
         username : String::from("username"),
         password : String::from("password")};
+
     let sess = conn.connect_ssh();
-
-    let mut channel = sess.channel_session().unwrap();
-    channel.exec("ls").unwrap();
-    let mut s = String::new();
-    channel.read_to_string(&mut s).unwrap();
+    let exec = Command{sess: Session::from(sess),
+        comm: String::from("ls")};
+    let s = exec.ex_command();
     println!("{}", s);
-    channel.wait_close();
-    println!("{}", channel.exit_status().unwrap());
-
-
 }
