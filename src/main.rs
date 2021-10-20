@@ -1,6 +1,9 @@
 use std::io::prelude::*;
 use ssh2::Session;
 use std::net::{TcpStream, ToSocketAddrs};
+use std::fs::File;
+use std::fs;
+use std::io::prelude::*;
 
 struct Connection
 {
@@ -15,6 +18,11 @@ struct Command
     comm : String,
 }
 
+struct NewFile
+{
+    filename: String,
+}
+
 trait ConnectSsh
 {
     fn connect_ssh(&self) ->Session;
@@ -23,6 +31,18 @@ trait ConnectSsh
 trait  ExCommand
 {
     fn ex_command(&self) ->String;
+}
+
+trait  CreateFile
+{
+    fn create_file(&self) -> std::io::Result<()>;
+}
+
+impl CreateFile for NewFile {
+    fn create_file(&self) -> std::io::Result<()> {
+        File::create(&self.filename)?;
+        Ok(())
+    }
 }
 
 
@@ -61,4 +81,9 @@ fn main() {
         comm: String::from("ls")};
     let s = exec.ex_command();
     println!("{}", s);
+
+    let newfile = NewFile{filename : String::from("test1.txt")};
+    newfile.create_file();
+
+
 }
