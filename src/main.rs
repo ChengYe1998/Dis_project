@@ -4,6 +4,8 @@ use std::net::{TcpStream, ToSocketAddrs};
 use std::fs::File;
 use std::fs;
 use std::io::prelude::*;
+use std::io::Write;
+use std::io::Read;
 
 struct Connection
 {
@@ -23,6 +25,17 @@ struct NewFile
     filename: String,
 }
 
+struct RFile
+{
+    filename: String,
+}
+
+struct WFile
+{
+    filename: String,
+    input: String,
+}
+
 trait ConnectSsh
 {
     fn connect_ssh(&self) ->Session;
@@ -37,6 +50,34 @@ trait  CreateFile
 {
     fn create_file(&self) -> std::io::Result<()>;
 }
+
+trait  WriteFile
+{
+    fn write_file(&self) -> std::io::Result<()>;
+}
+
+trait  ReadFile
+{
+    fn read_file(&self) -> String;
+}
+
+impl ReadFile for RFile {
+    fn read_file(&self) -> String {
+        let mut file = File::open(&self.filename)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        contents
+    }
+}
+
+impl WriteFile for WFile {
+    fn write_file(&self) -> std::io::Result<()> {
+        let mut file = File::open(&self.filename)?;
+        file.write_all(&self.input.as_bytes());
+        Ok(())
+    }
+}
+
 
 impl CreateFile for NewFile {
     fn create_file(&self) -> std::io::Result<()> {
@@ -82,8 +123,13 @@ fn main() {
     let s = exec.ex_command();
     println!("{}", s);
 
-    let newfile = NewFile{filename : String::from("test1.txt")};
+    let newfile = NewFile{filename : String::from("test3.txt")};
     newfile.create_file();
+    let write = WFile{filename : String::from("test3.txt"),
+        input: String::from("hello")};
+    write.write_file();
+    let read = RFile{filename : String::from("test3.txt")};
+    print!("{}", read.read_file());
 
 
 }
