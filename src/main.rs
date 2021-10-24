@@ -1,135 +1,21 @@
-use std::io::prelude::*;
+mod function;
+
 use ssh2::Session;
-use std::net::{TcpStream, ToSocketAddrs};
-use std::fs::File;
-use std::fs;
 use std::io::prelude::*;
-use std::io::Write;
-use std::io::Read;
 
-struct Connection
-{
-    hostname : String,
-    username : String,
-    password : String,
-}
+use crate::function::connect::Connection;
+use crate::function::connect::ConnectSsh;
+use crate::function::command_used::Command;
+use crate::function::command_used::ExCommand;
 
-struct Command
-{
-    sess : Session,
-    comm : String,
-}
-
-struct NewFile
-{
-    filename: String,
-}
-
-struct RFile
-{
-    filename: String,
-}
-
-struct WFile
-{
-    filename: String,
-    input: String,
-}
-
-trait ConnectSsh
-{
-    fn connect_ssh(&self) ->Session;
-}
-
-trait  ExCommand
-{
-    fn ex_command(&self) ->String;
-}
-
-trait  CreateFile
-{
-    fn create_file(&self) -> std::io::Result<()>;
-}
-
-trait  WriteFile
-{
-    fn write_file(&self) -> std::io::Result<()>;
-}
-
-trait  ReadFile
-{
-    fn read_file(&self) -> String;
-}
-
-impl ReadFile for RFile {
-    fn read_file(&self) -> String {
-        let mut file = File::open(&self.filename)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-        contents
-    }
-}
-
-impl WriteFile for WFile {
-    fn write_file(&self) -> std::io::Result<()> {
-        let mut file = File::open(&self.filename)?;
-        file.write_all(&self.input.as_bytes());
-        Ok(())
-    }
-}
-
-
-impl CreateFile for NewFile {
-    fn create_file(&self) -> std::io::Result<()> {
-        File::create(&self.filename)?;
-        Ok(())
-    }
-}
-
-
-impl ConnectSsh for Connection {
-    fn connect_ssh(&self) ->Session {
-        //let host_ip: Vec<_> = self.hostname.to_socket_addrs().unwrap().collect();
-        let tcp = TcpStream::connect(&self.hostname).unwrap();
-        let mut sess = Session::new().unwrap();
-        sess.set_tcp_stream(tcp);
-        sess.handshake().unwrap();
-
-        sess.userauth_password(&*self.username, &*self.password).unwrap();
-        assert!(sess.authenticated());
-        sess
-    }
-}
-
-impl ExCommand for Command {
-    fn ex_command(&self) -> String {
-        let mut channel = self.sess.channel_session().unwrap();
-        channel.exec(&self.comm).unwrap();
-        let mut s = String::new();
-        channel.read_to_string(&mut s).unwrap();
-        channel.wait_close();
-        s
-    }
-}
-
-fn main() {
+fn main()  {
     let conn = Connection{hostname : String::from("hostname:22"),
         username : String::from("username"),
         password : String::from("password")};
-
-    let sess = conn.connect_ssh();
-    let exec = Command{sess: Session::from(sess),
-        comm: String::from("ls")};
+    let exec = Command{sess: Session::from(conn.connect_ssh()),
+        comm: String::from("command")};
     let s = exec.ex_command();
-    println!("{}", s);
-
-    let newfile = NewFile{filename : String::from("test3.txt")};
-    newfile.create_file();
-    let write = WFile{filename : String::from("test3.txt"),
-        input: String::from("hello")};
-    write.write_file();
-    let read = RFile{filename : String::from("test3.txt")};
-    print!("{}", read.read_file());
+    print!("{}",s);
 
 
 }
