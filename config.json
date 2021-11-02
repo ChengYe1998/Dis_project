@@ -1,0 +1,14 @@
+{
+  "comm": "xx",
+  "groups":
+  [
+    [
+      {
+        "hostname": "xxx.xxx.xx.xxx:xxx",
+        "username": "xx",
+        "password": "xxxxxxxx"
+      }
+    ]
+  ]
+
+}
