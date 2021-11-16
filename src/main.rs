@@ -1,4 +1,6 @@
 mod function;
+mod client_function;
+mod server_function;
 
 use ssh2::Session;
 use std::fs::File;
@@ -20,6 +22,7 @@ fn main()  {
     file.read_to_string(&mut data).unwrap();
 
     let g: Groups = serde_json::from_str(&data).unwrap();
+    //Server 1 in the group 1.
     let conn = &g.groups[0][0];
 
     let exec: Command = serde_json::from_str(&data).unwrap();
