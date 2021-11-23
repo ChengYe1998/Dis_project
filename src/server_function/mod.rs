@@ -1,2 +1,2 @@
-pub mod server;
-pub mod software;
+pub mod connection;
+pub mod software_deployment;
