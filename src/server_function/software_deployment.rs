@@ -7,20 +7,17 @@ pub struct SoftwareInfo{
     version: String,
     package_tool: String,
 }
-
 impl SoftwareInfo {
     pub fn new(name:String, version:String) -> SoftwareInfo{
         let package_tool = String::from(SoftwareInfo::choose_tool());
         let version = version;
         SoftwareInfo{name,version,package_tool}
     }
-
     fn execute(&mut self, comm: String) -> String{
         let excu = Command::new("sh").arg("-c").arg(comm).output().expect("sh exec error!");
         let result = String::from(std::str::from_utf8(&excu.stdout).unwrap());
         result
     }
-
     fn choose_tool() -> &'static str {
         let result = match Command::new("apt").output(){
             Ok(..) => "apt",
@@ -28,12 +25,10 @@ impl SoftwareInfo {
         };
         result
     }
-
     fn software_version(&mut self) -> String {
         let comm = format!("{} list --showduplicates {}",self.package_tool, self.name);
         self.execute(comm)
     }
-
     fn query(&mut self) -> String {
         let comm =match self.package_tool.as_ref(){
             "yum"=> format!("{} list installed | grep -i {}",self.package_tool,self.name),
@@ -46,7 +41,6 @@ impl SoftwareInfo {
         };
         String::from(status)
     }
-
     fn install(&mut self) -> String {
         match self.query().as_ref(){
             "Not installed"=>{
@@ -64,14 +58,15 @@ impl SoftwareInfo {
             _=>String::from("Already installed")
         }
     }
-
     fn install_by_version(&mut self, server_stream: &mut ServerStream) -> String {
+        //get the version info for the software
         let result = self.software_version();
+        //tell the version info to client
         server_stream.stream.write(result.as_bytes()).unwrap();
+        //get client's selected
         self.version=server_stream.read_client();
         self.install()
     }
-
     fn update(&mut self) -> String {
         let comm =  format!("{} update -y {}",self.package_tool,self.name);
         let result = self.execute(comm);
@@ -82,13 +77,11 @@ impl SoftwareInfo {
         };
         String::from(find_result)
     }
-
     fn remove(&mut self) -> String {
         let comm = format!("{} remove -y {}*", self.package_tool, self.name);
         let result = self.execute(comm);
         result
     }
-
     pub fn selected(&mut self, method:String, server_stream:&mut ServerStream) -> String{
         match method.as_ref() {
             "query" => {
@@ -115,3 +108,4 @@ impl SoftwareInfo {
         }
     }
 }
+

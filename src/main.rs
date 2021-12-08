@@ -35,21 +35,6 @@ fn main() {
 }*/
 
 
-struct Server{
-    port : String
-}
-
-impl Server {
-    fn new(port:String) -> Server{
-        Server{port}
-    }
-
-    fn connect_client(&self) -> TcpStream{
-        let together = format!("0.0.0.0:{}",self.port);
-        let listener = TcpListener::bind(together).expect("bind failed");
-        listener.incoming().next().unwrap().expect("failed")
-    }
-}
 //for test server side
 fn main(){
     let mut stream = ServerStream::new();

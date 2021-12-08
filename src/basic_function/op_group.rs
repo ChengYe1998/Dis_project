@@ -1,7 +1,7 @@
-use std::{fs, thread};
+use std::{fs, process, thread};
 use std::fs::File;
 use std::io::{Read, Write};
-use ssh2::Session;
+use ssh2::{Channel, Session};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::ops::Add;
 use std::path::Path;
@@ -14,109 +14,117 @@ use serde::{Deserialize, Serialize};
 pub struct Groups{
     pub groups: Vec<Vec<Connection>>,
 }
+impl Groups{
+    pub fn new(file_name : &str ) -> Self {
+        let mut file = File::open(file_name)
+            .expect("Open file failed");
+        let mut data = String::new();
+        file.read_to_string(&mut data)
+            .expect("Read file failed");
+        serde_json::from_str(&data).unwrap()
+    }
+    //Select group you want to operate by group ID.
+    pub fn select_group(self, group_id : usize, name: &str) -> Vec<TcpStream>{
+        let n= self.groups.len();
+        let mut vec_stream:Vec<TcpStream> = vec![];
+        if n > group_id
+        {
+            for conn in &self.groups[group_id] {
+                let rsess = RSession::new(conn.connect_ssh());
+                rsess.open_server(name);
+                let mut stream = conn.connect_tcp();
+                vec_stream.push(stream);
+            }
+        }
+        vec_stream
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Connection
 {
     pub hostname : String,
-    pub port : Sting,
+    pub port : String,
     pub username : String,
     pub password : String,
+}
+impl Connection {
+    pub fn new(hostname:String, port:String,username:String,password:String)->Self{
+        Connection{hostname, port, username,password}
+    }
+    //connected by ssh
+    pub fn connect_ssh(&self) ->Session {
+        let bind_port = format!("{}{}", self.hostname, ":22");
+        let tcp = TcpStream::connect(bind_port)
+            .expect("connect to the remote server failed, please check the information of the server");
+
+        let mut sess = Session::new().unwrap();
+        sess.set_tcp_stream(tcp);
+        sess.handshake()
+            .expect("Failed to establish connection");
+        sess.userauth_password(&self.username, &self.password)
+            .expect("Please check the username and password");
+        assert!(sess.authenticated());
+
+        sess
+    }
+    //connected by TCP stream
+    pub fn connect_tcp(&self) -> TcpStream{
+        let together = format!("{}:{}",&self.hostname,&self.port);
+        let mut stream = TcpStream::connect(together)
+            .expect("TCP connect failed");
+        println!("Connect to the server successfully");
+        stream
+    }
 }
 
 //This session is the ssh session
 pub struct RSession{
     pub sess : Session
 }
-
-impl Connection {
-    //connected by ssh
-    pub fn connect_ssh(&self) ->Session {
-        let bind_port = format!("{}{}", self.hostname, ":22");
-        let tcp = TcpStream::connect(bind_port).unwrap();
-        let mut sess = Session::new().unwrap();
-        sess.set_tcp_stream(tcp);
-        sess.handshake().unwrap();
-        sess.userauth_password(&self.username, &self.password).unwrap();
-        assert!(sess.authenticated());
-        sess
-    }
-    //connected by TCP stream
-    pub fn connect_tcp(&self) -> TcpStream{
-        let mut stream = TcpStream::connect(self.hostname.add(self.port)).unwrap();
-        stream
-    }
-}
-
 impl RSession {
-    fn new(sess : Session) -> RSession{
+    fn new(sess : Session) -> Self{
         RSession{sess}
     }
     //If the server node don't have the server app, use this function to upload server app.
-    fn upload_server_app(self, file_path: &str){
+    fn upload_server_app(&self, file_path: &str) {
 
-        let data = fs::read(file_path).unwrap();
+        let data = fs::read(file_path)
+            .expect("read file failed");
+
         let mut server_app = self.sess.scp_send(Path::new(file_path)
-                                                , 0o644, data.len() as u64, None).unwrap();
-        server_app.write(&data).unwrap();
+                                                ,0o644,data.len() as u64, None)
+            .expect("open channel failed");
 
+        server_app.write(&data)
+            .expect("write data failed");
     }
-
     //open the server app
-    pub fn open_server(self, app_name: &str) {
-        let mut channel = self.sess.channel_session().unwrap();
-        let mut comm = format!("find / -name {} -type f",app_name, );
-        channel.exec(&comm).unwrap();
-        let mut str = String::new();
-        channel.read_to_string(&mut str).unwrap();
-        match str.len() {
+    pub fn open_server(&self, app_name: &str) {
+        let mut channel = self.sess.channel_session()
+            .expect("open channel failed");
+        let mut comm = format!("find -name {} -type f",app_name);
+        channel.exec(&comm)
+            .expect("command executed failed");
+        let mut result = String::new();
+        channel.read_to_string(&mut result).unwrap();
+        channel.close();
+        match result.len() {
             0 => {
                 self.upload_server_app(app_name);
-                str = format!("./{}",app_name);
+                result = format!("./{} &",app_name);
             },
             _ => {
-                str = str::replace(&str, "\n", "");
+                result = str::replace(&result, "\n", " &");
             }
         }
-        channel.exec(&str).unwrap();
-        channel.wait_close().ok();
-    }
 
-}
+        let mut channel = self.sess.channel_session()
+            .expect("open channel failed");
+        channel.exec(&result)
+            .expect("command executed failed");
+        channel.close();
 
-
-impl Groups{
-    pub fn new(file_name : &str ) -> Groups {
-        let mut file = File::open(file_name).expect("Open file failed");
-        let mut data = String::new();
-        file.read_to_string(&mut data).expect("Read file failed");
-        serde_json::from_str(&data).unwrap()
-    }
-
-    //Select group you want to operate by group ID.
-    pub fn select_group(self, group_id : usize, name: &str) {
-        if self.groups.len()>=group_id {
-
-            let mut thread_handle: Vec<thread::JoinHandle<()>> = Vec::new();
-            for conn in &self.groups[group_id]{
-                let rsess = RSession::new(conn.connect_ssh());
-                rsess.open_server(name);
-                //handle_client(stream).unwrap();
-                let stream = conn.connect_tcp();
-
-                let handle = thread::spawn(move || {
-                    handle_server(stream);
-                });
-                thread_handle.push(handle);
-            }
-            for handle in thread_handle {
-                handle.join().unwrap();
-            }
-        }
-        else {
-            println!("No such group");
-        }
     }
 }
-
 

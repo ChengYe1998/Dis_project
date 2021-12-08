@@ -12,6 +12,7 @@ pub struct MonServer{
     mon_type:MonType,
     option:String
 }
+
 pub struct  MonCPU{
     option:String
 }
@@ -87,7 +88,6 @@ impl Monitor for MonCPU {
         }
     }
 }
-
 impl MonCPU {
     pub fn new(option:String)->MonCPU{
         MonCPU{option}
@@ -140,7 +140,7 @@ impl Monitor for MonSystem {
         match self.option.as_ref() {
             "sys_info" => self.basic_info(),
             "kernel_module" => self.loaded_kernel_module(),
-            "env"=> self.environment_variable(),
+            "environment"=> self.environment_variable(),
             _=>String::from("Option doesn't exist!"),
         }
     }

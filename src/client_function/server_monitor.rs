@@ -9,7 +9,6 @@ pub enum MonType{
     System,
     User
 }
-
 pub trait Monitor{
     fn selected(&mut self)-> String;
 }
@@ -18,24 +17,8 @@ pub struct MonServer{
     mon_type:MonType,
     pub option:String
 }
-pub struct  MonCPU{
-    option:String
-}
-pub struct  MonMemory{
-    option:String
-}
-pub struct MonNetwork{
-    option: String
-}
-pub struct MonSystem{
-    option: String
-}
-pub struct MonUser{
-    option: String
-}
-
 impl MonServer {
-    pub fn new(m_type:String, option: String)->MonServer {
+    pub fn new(m_type:String, option: String)->Self {
         match m_type.as_ref(){
             "cpu" =>MonServer{mon_type:MonType::CPU, option },
             "memory" =>MonServer{mon_type:MonType::Memory, option },
@@ -44,7 +27,6 @@ impl MonServer {
             _=>MonServer{mon_type:MonType::User,option}
         }
     }
-
     pub fn select(&mut self) -> String{
         let option = String::from(&self.option);
         match self.mon_type {
@@ -72,6 +54,28 @@ impl MonServer {
     }
 }
 
+pub struct  MonCPU{
+    option:String
+}
+
+impl MonCPU{
+    pub fn new(option:String)->Self{
+        MonCPU{option}
+    }
+    fn logical_cpu_number(&mut self) -> String{
+        let mut input = format!("mon,cpu,{}",self.option);
+        input
+    }
+    fn physical_cpu_number(&mut self)-> String{
+        let mut input = format!("mon,cpu,{}",self.option);
+        input
+    }
+    fn cpu_info(&mut self)-> String{
+        let mut input = format!("mon,cpu,{}",self.option);
+        input
+    }
+}
+
 impl Monitor for MonCPU {
     fn selected(&mut self)-> String{
         match self.option.as_ref() {
@@ -91,25 +95,26 @@ impl Monitor for MonCPU {
     }
 }
 
-impl MonCPU{
-    pub fn new(option:String)->MonCPU{
-        MonCPU{option}
+pub struct  MonMemory{
+    option:String
+}
+impl MonMemory{
+    pub fn new(option:String)->Self{
+        MonMemory{option}
     }
-
-    fn logical_cpu_number(&mut self) -> String{
-        let mut input = format!("mon,cpu,{}",self.option);
+    fn men_usage(&mut self)->String{
+        let mut input = format!("mon,mem,{}",self.option);
         input
     }
-    fn physical_cpu_number(&mut self)-> String{
-        let mut input = format!("mon,cpu,{}",self.option);
+    fn men_free(&mut self)->String{
+        let mut input = format!("mon,mem,{}",self.option);
         input
     }
-    fn cpu_info(&mut self)-> String{
-        let mut input = format!("mon,cpu,{}",self.option);
+    fn men_total(&mut self)->String{
+        let mut input = format!("mon,mem,{}",self.option);
         input
     }
 }
-
 impl Monitor for MonMemory {
     fn selected(&mut self)-> String{
         match self.option.as_ref() {
@@ -129,64 +134,39 @@ impl Monitor for MonMemory {
     }
 }
 
-impl MonMemory{
-    pub fn new(option:String)->MonMemory{
-        MonMemory{option}
-    }
-
-    fn men_usage(&mut self)->String{
-        let mut input = format!("mon,mem,{}",self.option);
-        input
-    }
-
-    fn men_free(&mut self)->String{
-        let mut input = format!("mon,mem,{}",self.option);
-        input
-    }
-    fn men_total(&mut self)->String{
-        let mut input = format!("mon,mem,{}",self.option);
-        input
-    }
+pub struct MonNetwork {
+    option: String
 }
-
-impl Monitor for MonSystem {
-    fn selected(&mut self) -> String{
-        match self.option.as_ref() {
-            "sys_info" => {
-                self.basic_info()
-            },
-            "kernel_module" => {
-                self.loaded_kernel_module()
-            },
-            "env"=>{
-                self.environment_variable()
-            }
-            _=>{
-                String::from("Wrong option")
-            }
-        }
+impl MonNetwork{
+    pub fn new(option:String)->Self{
+        MonNetwork{option}
     }
+    fn network_interfaces(&mut self)->String{
+        let mut input = format!("mon,net,{}",self.option);
+        input
+    }
+    fn firewall_settings(&mut self)->String{
+        let mut input = format!("mon,net,{}",self.option);
+        input
+    }
+    fn routing_table(&mut self)->String{
+        let mut input = format!("mon,net,{}",self.option);
+        input
+    }
+    fn listening_ports(&mut self)->String{
+        let mut input = format!("mon,net,{}",self.option);
+        input
+    }
+    fn established_connections(&mut self)->String{
+        let mut input = format!("mon,net,{}",self.option);
+        input
+    }
+    fn network_info(&mut self)->String{
+        let mut input = format!("mon,net,{}",self.option);
+        input
+    }
+
 }
-
-impl MonSystem{
-    pub fn new(option:String)->MonSystem{
-        MonSystem{option}
-    }
-
-    fn basic_info(&mut self)->String{
-        let mut input = format!("mon,sys,{}",self.option);
-        input
-    }
-    fn loaded_kernel_module(&mut self)->String{
-        let mut input = format!("mon,sys,{}",self.option);
-        input
-    }
-    fn environment_variable(&mut self)->String{
-        let mut input = format!("mon,sys,{}",self.option);
-        input
-    }
-}
-
 impl Monitor for MonNetwork {
     fn selected(&mut self)-> String{
         match self.option.as_ref() {
@@ -215,39 +195,70 @@ impl Monitor for MonNetwork {
     }
 }
 
-impl MonNetwork{
-    pub fn new(option:String)->MonNetwork{
-        MonNetwork{option}
-    }
 
-    fn network_interfaces(&mut self)->String{
-        let mut input = format!("mon,net,{}",self.option);
+pub struct MonSystem{
+    option: String
+}
+impl MonSystem{
+    pub fn new(option:String)->Self{
+        MonSystem{option}
+    }
+    fn basic_info(&mut self)->String{
+        let mut input = format!("mon,sys,{}",self.option);
         input
     }
-
-    fn firewall_settings(&mut self)->String{
-        let mut input = format!("mon,net,{}",self.option);
+    fn loaded_kernel_module(&mut self)->String{
+        let mut input = format!("mon,sys,{}",self.option);
         input
     }
-    fn routing_table(&mut self)->String{
-        let mut input = format!("mon,net,{}",self.option);
+    fn environment_variable(&mut self)->String{
+        let mut input = format!("mon,sys,{}",self.option);
         input
     }
-    fn listening_ports(&mut self)->String{
-        let mut input = format!("mon,net,{}",self.option);
-        input
+}
+impl Monitor for MonSystem {
+    fn selected(&mut self) -> String{
+        match self.option.as_ref() {
+            "sys_info" => {
+                self.basic_info()
+            },
+            "kernel_module" => {
+                self.loaded_kernel_module()
+            },
+            "environment"=>{
+                self.environment_variable()
+            }
+            _=>{
+                String::from("Wrong option")
+            }
+        }
     }
-    fn established_connections(&mut self)->String{
-        let mut input = format!("mon,net,{}",self.option);
-        input
-    }
-    fn network_info(&mut self)->String{
-        let mut input = format!("mon,net,{}",self.option);
-        input
-    }
-
 }
 
+pub struct MonUser{
+    option: String
+}
+impl MonUser {
+    pub fn new(option:String)->Self{
+        MonUser{option}
+    }
+    fn active_users(&mut self)->String{
+        let mut input = format!("mon,user,{}",self.option);
+        input
+    }
+    fn user_login_log(&mut self)->String{
+        let mut input = format!("mon,user,{}",self.option);
+        input
+    }
+    fn all_users(&mut self)->String{
+        let mut input = format!("mon,user,{}",self.option);
+        input
+    }
+    fn all_groups(&mut self)->String{
+        let mut input = format!("mon,user,{}",self.option);
+        input
+    }
+}
 impl Monitor for MonUser {
     fn selected(&mut self)-> String {
         match self.option.as_ref() {
@@ -268,30 +279,6 @@ impl Monitor for MonUser {
                 String::from("Wrong option")
             }
         }
-    }
-}
-
-impl MonUser {
-    pub fn new(option:String)->MonUser{
-        MonUser{option}
-    }
-
-    fn active_users(&mut self)->String{
-        let mut input = format!("mon,user,{}",self.option);
-        input
-    }
-
-    fn user_login_log(&mut self)->String{
-        let mut input = format!("mon,user,{}",self.option);
-        input
-    }
-    fn all_users(&mut self)->String{
-        let mut input = format!("mon,user,{}",self.option);
-        input
-    }
-    fn all_groups(&mut self)->String{
-        let mut input = format!("mon,user,{}",self.option);
-        input
     }
 }
 
