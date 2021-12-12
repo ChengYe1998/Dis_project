@@ -1,3 +1,4 @@
+use std::fs::metadata;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use crate::server_function::file_share::OpFile;
@@ -81,12 +82,14 @@ impl ServerStream {
 
     pub fn file_download(&mut self, path:String, content:String){
         let mut op_file=OpFile{ path,content };
-        op_file.file_download();
+        let result = op_file.file_download();
+        self.stream.write(result.as_bytes());
     }
 
     pub fn file_upload(&mut self, path:String, content:String){
         let mut op_file=OpFile{ path,content };
         op_file.file_upload(&self.stream);
+        self.stream.write("Finished,Null,Null".as_bytes());
     }
 
     pub fn directory_upload(&mut self, path:String, content:String){
@@ -99,8 +102,8 @@ impl ServerStream {
 
     pub fn create_dir(&mut self, path:String, content:String){
         let mut op_file=OpFile{ path,content };
-        op_file.create_dir();
-        self.stream.write("OK".as_bytes());
+        let result= op_file.create_dir();
+        self.stream.write(result.as_bytes());
     }
 
     pub fn save_file(&mut self, path:String, content:String){
@@ -120,10 +123,17 @@ impl ServerStream {
                     "soft"=>self.soft_selected(data_one,data_two),
                     "mon"=>self.mon_selected(data_one,data_two),
                     "FileIn"=>self.file_download(data_one,data_two),
-                    "FileOut"=>self.file_upload(data_one,data_two),
+                    "FileOut"=>{
+                        let md = metadata(&data_one).unwrap();
+                        if md.is_dir(){
+                            self.directory_upload(data_one,data_two)
+                        }
+                        else if md.is_file(){
+                            self.file_upload(data_one,data_two)
+                        }
+                    },
                     "CreateDir"=>self.create_dir(data_one,data_two),
                     "SaveFile"=>self.save_file(data_one,data_two),
-                    "DownloadDir"=>self.directory_upload(data_one,data_two),
                     _ => {}
                 }
             }

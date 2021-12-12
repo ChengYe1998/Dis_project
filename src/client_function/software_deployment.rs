@@ -4,7 +4,7 @@ use std::net::TcpStream;
 use crate::client_function::op_stream::ClientStream;
 
 pub struct SoftDeploy{
-    name: String,
+    pub name: String,
 }
 impl SoftDeploy{
     pub fn new (name : String) -> Self {
@@ -26,12 +26,19 @@ impl SoftDeploy{
         let mut input = format!("soft,query,{}",self.name);
         input
     }
-    pub fn install_by_version(&mut self,stream:&mut TcpStream){
+    pub fn install_by_version(&mut self,stream:&mut TcpStream)->String{
         let mut input = format!("soft,version,{}",self.name);
-        ClientStream::io_stream(stream, &input);
-        let mut version = String::new();
-        io::stdin().read_line(&mut version).expect("Failed to read line");
-        ClientStream::io_stream(stream, &version);
+        let result = ClientStream::io_stream(stream, &input);
+        if result=="Software not exists"{
+            result
+        }
+        else{
+            println!("Input the software version:");
+            let mut version = String::new();
+            io::stdin().read_line(&mut version).expect("Failed to read line");
+            version=version.trim().parse().unwrap();
+            ClientStream::io_stream(stream, &version)
+        }
     }
     //select which function should use
     pub fn select(&mut self, option: &String) -> String{

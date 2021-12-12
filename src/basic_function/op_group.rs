@@ -31,8 +31,20 @@ impl Groups{
         {
             for conn in &self.groups[group_id] {
                 let rsess = RSession::new(conn.connect_ssh());
-                rsess.open_server(name);
-                let mut stream = conn.connect_tcp();
+                let mut stream;
+                loop{
+                    rsess.open_server(name);
+                    stream = match conn.connect_tcp(){
+                        Ok(t)=>{
+                            println!("Connect successfully");
+                            t
+                        },
+                        Err(_e)=>{
+                            continue;
+                        }
+                    };
+                    break;
+                }
                 vec_stream.push(stream);
             }
         }
@@ -69,12 +81,13 @@ impl Connection {
         sess
     }
     //connected by TCP stream
-    pub fn connect_tcp(&self) -> TcpStream{
+    pub fn connect_tcp(&self) -> Result<TcpStream,  &'static str>{
         let together = format!("{}:{}",&self.hostname,&self.port);
-        let mut stream = TcpStream::connect(together)
-            .expect("TCP connect failed");
-        println!("Connect to the server successfully");
-        stream
+        let stream = match  TcpStream::connect(together){
+            Ok(T)=>T,
+            Err(_E)=>return Err("Connect failed"),
+        };
+        Ok(stream)
     }
 }
 

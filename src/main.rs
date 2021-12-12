@@ -11,11 +11,11 @@ use std::{fs, io};
 use std::io::Read;
 use std::path::Path;
 use crate::basic_function::op_group::{RSession, Connection, Groups};
-use crate::client_function::op_stream::ClientStream;
+use crate::client_function::op_stream::{ClientStream, OperaStream, Operations};
 use crate::client_function::server_monitor::{MonServer, MonType};
 use crate::client_function::software_deployment::SoftDeploy;
 
-//for client test
+//Use menu to input data，for test
 /*
 fn main() {
     let gs = Groups::new("config.json");
@@ -31,6 +31,17 @@ fn main() {
         io::stdin().read_line(&mut function).expect("Failed to read line");
         function = String::from(&function).replace("\n","");
         client_stream.function=function;
+    }
+}*/
+
+//Automatic execution using JSON files
+/*fn main(){
+    let op = Operations::new("config.json");
+    for operation in op.operations{
+        let gs = Groups::new("config.json");
+        let stream = gs.select_group(operation.group as usize, "rust_server_app");
+        let mut opera = OperaStream::new(operation, vec);
+        opera.selected();
     }
 }*/
 

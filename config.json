@@ -1,5 +1,4 @@
 {
-  "comm": "xx",
   "groups":
   [
     [
@@ -9,6 +8,30 @@
         "password": "xxxxxxxx"
       }
     ]
+  ],
+  "operations":
+  [
+    {
+      "para_1": "file",
+      "para_2": "compare file",
+      "para_3": "test=test",
+      "group": 0,
+      "node": 0
+    },
+    {
+      "para_1": "soft",
+      "para_2": "query",
+      "para_3": "tomcat",
+      "group": 0,
+      "node": -1
+    },
+    {
+      "para_1": "mon",
+      "para_2": "cpu",
+      "para_3": "logical",
+      "group": 0,
+      "node": -1
+    }
   ]
 
 }

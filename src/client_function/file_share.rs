@@ -18,21 +18,6 @@ impl  OpFile {
         input.read_to_string(&mut result).unwrap();
         let together = format!("FileIn,{},{}",remote_path,result);
         stream.write(together.as_bytes());
-    }
-    pub fn file_download(&mut self, path:&str, mut stream: &TcpStream){
-        let together = format!("FileOut,{},Null",self.name);
-        stream.write(together.as_bytes());
-        let mut server_buf = [0;512];
-        let client_read = stream.read(&mut server_buf).unwrap();
-        let mut content= std::str::from_utf8(&server_buf[..client_read]).unwrap();
-        let mut file = File::create(path).unwrap();
-        file.write(content.as_bytes());
-    }
-    pub fn directory_upload(&mut self, src: &str, dst: &str, mut stream: &TcpStream) {
-        //tell the server the request type
-        let together = format!("CreateDir,{},Null",dst);
-        stream.write(together.as_bytes());
-        stream.flush().unwrap();
         let mut buffer = [0;512];
         loop{
             let size= stream.read(&mut buffer).unwrap();
@@ -40,39 +25,16 @@ impl  OpFile {
             if mess =="OK"{
                 break;
             }
-        }
-        for entry in fs::read_dir(src).unwrap() {
-            let entry = entry.unwrap();
-            let file_type = entry.file_type().unwrap();
-            stream.flush().unwrap();
-            if file_type.is_dir() {
-                //recursion
-                let str=format!("{}/{}",dst,entry.file_name().to_str().unwrap());
-                self.directory_upload(entry.path().to_str().unwrap(), &str,stream);
-            }
-            else {
-                //transfer file
-                let mut input = File::open(&entry.path()).unwrap();
-                let str=format!("{}/{}",dst,entry.file_name().to_str().unwrap());
-                let mut result=String::new();
-                input.read_to_string(&mut result).unwrap();
-                // stream.write(result.as_bytes());
-                let together = format!("SaveFile,{},{}",str,result);
-                stream.write(together.as_bytes());
-                loop{
-                    let size= stream.read(&mut buffer).unwrap();
-                    let mess=std::str::from_utf8(&buffer[..size]).unwrap();
-                    if mess =="OK"{
-                        break;
-                    }
-                }
+            else if mess=="Is a directory"{
+                println!("Directory already exists or path not exists");
+                break;
             }
         }
+
     }
-    pub fn directory_download(&mut self, path: &str, mut stream: &TcpStream){
-        let together = format!("DownloadDir,{},{}",self.name,path);
+    pub fn file_download(&mut self, path:&str, mut stream: &TcpStream){
+        let together = format!("FileOut,{},{}",self.name,path);
         stream.write(together.as_bytes());
-        //Process the data from server side
         loop{
             let pos = ClientStream::io_file(stream);
             let data_one = pos[1].clone();
@@ -87,6 +49,11 @@ impl  OpFile {
                     file.write(data_two.as_bytes()).unwrap();
                     stream.write("OK".as_bytes());
                 },
+                "NewFile"=>{
+                    let mut file = File::create(path).unwrap();
+                    file.write(data_two.as_bytes());
+                    stream.write("OK".as_bytes());
+                },
                 "Finished"=>{
                     break;
                 }
@@ -94,12 +61,60 @@ impl  OpFile {
             }
         }
     }
-    pub fn directory_compare(&mut self, mut stream: &TcpStream) -> String{
+    pub fn directory_upload(&mut self, src: &str, dst: &str, mut stream: &TcpStream) {
+        //tell the server the request type
+        let together = format!("CreateDir,{},Null",dst);
+        stream.write(together.as_bytes());
+        stream.flush().unwrap();
+        let mut buffer = [0;512];
+        let mut judge;
+        loop{
+            let size= stream.read(&mut buffer).unwrap();
+            let mess=std::str::from_utf8(&buffer[..size]).unwrap();
+            if mess =="OK" || mess=="File exists"{
+                judge = String::from(mess);
+                break;
+            }
+        }
+        if judge=="File exists"{
+            println!("File already exists or path not exist");
+        }
+        else {
+            for entry in fs::read_dir(src).unwrap() {
+                let entry = entry.unwrap();
+                let file_type = entry.file_type().unwrap();
+                stream.flush().unwrap();
+                if file_type.is_dir() {
+                    //recursion
+                    let str=format!("{}/{}",dst,entry.file_name().to_str().unwrap());
+                    self.directory_upload(entry.path().to_str().unwrap(), &str,stream);
+                }
+                else {
+                    //transfer file
+                    let mut input = File::open(&entry.path()).unwrap();
+                    let str=format!("{}/{}",dst,entry.file_name().to_str().unwrap());
+                    let mut result=String::new();
+                    input.read_to_string(&mut result).unwrap();
+                    // stream.write(result.as_bytes());
+                    let together = format!("SaveFile,{},{}",str,result);
+                    stream.write(together.as_bytes());
+                    loop{
+                        let size= stream.read(&mut buffer).unwrap();
+                        let mess=std::str::from_utf8(&buffer[..size]).unwrap();
+                        if mess =="OK"{
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    pub fn directory_compare(&mut self,path:&str, mut stream: &TcpStream) -> String{
         //download whole directory to the local,
         //compare each file, if the file is not exist or different, write in to compare_file.
-        let together = format!("DownloadDir,{},Null",self.name);
+        let together = format!("FileOut,{},{}",path,self.name);
         let mut local_dir = format!("{}",self.name);
-        self.name = format!("{}_clone",self.name);
+        let mut remote_dir = format!("{}_clone",self.name);
         stream.write(together.as_bytes());
         let mut compare_file = fs::OpenOptions::new()
             .write(true)
@@ -125,10 +140,10 @@ impl  OpFile {
                     }
                     pos.push(str);
                     if pos.len()==1{
-                        data_one=format!("{}",self.name);
+                        data_one=format!("{}",remote_dir);
                     }
                     else{
-                        data_one=format!("{}/{}",self.name,pos[1]);
+                        data_one=format!("{}/{}",remote_dir,pos[1]);
                     }
                     fs::create_dir_all(data_one).unwrap();
                     stream.write("OK".as_bytes());
@@ -146,18 +161,19 @@ impl  OpFile {
                     }
                     pos.push(str);
                     let local_file=format!("{}/{}",local_dir,pos[1]);
-                    let remote_file=format!("{}/{}",self.name,pos[1]);
+                    let remote_file=format!("{}/{}",remote_dir,pos[1]);
+                    println!("{}",remote_file);
                     let mut file = File::create(&remote_file).unwrap();
                     file.write(data_two.as_bytes()).unwrap();
                     file.flush();
                     match File::open(&local_file){
-                        Ok(t)=>{
+                        Ok(_t)=>{
                             let diff_title=format!("file {}: \n",&local_file);
                             compare_file.write(diff_title.as_bytes());
                             compare_file.flush();
                             self.file_compare(local_file, remote_file);
                         }
-                        Err(e)=>{
+                        Err(_e)=>{
                             let content = format!("{} is not exist in local\n",&local_file);
                             compare_file.write(content.as_bytes());
                             compare_file.flush();
@@ -165,13 +181,21 @@ impl  OpFile {
                     }
                     stream.write("OK".as_bytes());
                 },
+                "NewFile"=>{
+                    let mut file = File::create(&remote_dir).unwrap();
+                    file.write(data_two.as_bytes());
+                    stream.write("OK".as_bytes());
+                    let local_name = String::from(&local_dir);
+                    let remote_name = String::from(&remote_dir);
+                    self.file_compare(local_name,remote_name)
+                },
                 "Finished"=>{
                     break;
                 }
                 _ => {}
             }
         }
-        String::from(&self.name)
+        String::from(&remote_dir)
     }
     pub fn file_compare(&mut self, local_name:String, remote_name:String){
         let mut file = fs::OpenOptions::new()

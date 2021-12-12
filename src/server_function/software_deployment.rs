@@ -26,61 +26,113 @@ impl SoftwareInfo {
         result
     }
     fn software_version(&mut self) -> String {
-        let comm = format!("{} list --showduplicates {}",self.package_tool, self.name);
-        self.execute(comm)
+        let result =match self.package_tool.as_ref() {
+            "yum"=> {
+                let comm = format!("yum list --showduplicates {}", self.name);
+                let result = self.execute(comm);
+                match result.find(&self.name){
+                    Some(_v)=>result,
+                    None=>String::from(""),
+                }
+            },
+            _=>{
+                let comm = format!("apt-cache showpkg {}",self.name);
+                self.execute(comm)
+            },
+        };
+        result
     }
     fn query(&mut self) -> String {
-        let comm =match self.package_tool.as_ref(){
-            "yum"=> format!("{} list installed | grep -i {}",self.package_tool,self.name),
-            _ => format!("{} list -- installed | grep -i {}",self.package_tool,self.name)
-        };
-        let result = self.execute(comm);
-        let status = match result.len(){
-            0=>"Not installed",
-            _=>"Already installed"
-        };
-        String::from(status)
+        if self.software_version().len()==0{
+            String::from("Software not exists")
+        }
+        else{
+            let comm =match self.package_tool.as_ref(){
+                "yum"=> format!("yum list installed | grep -i {}",self.name),
+                _ => format!("apt list -- installed | grep -i {}",self.name)
+            };
+            let result = self.execute(comm);
+            let status = match result.len(){
+                0=>"Not installed",
+                _=>"Already installed"
+            };
+            String::from(status)
+        }
     }
     fn install(&mut self) -> String {
-        match self.query().as_ref(){
-            "Not installed"=>{
-                let comm= match self.version.as_ref() {
-                    ""=>format!("{} install -y {}",self.package_tool,self.name),
-                    _=>format!("{} install -y {}-{}",self.package_tool,self.name,self.version)
-                };
-                self.execute(comm);
-                let status = match self.query().as_ref(){
-                    "Already installed" => "Installed successfully",
-                    _ => "Installed failed"
-                };
-                String::from(status)
+        if self.software_version().len()==0{
+            String::from("Software not exists")
+        }
+        else{
+            match self.query().as_ref(){
+                "Not installed"=>{
+                    let comm= match self.version.as_ref() {
+                        ""=>{
+                            match self.package_tool.as_ref(){
+                                "yum"=>format!("yum install -y {}",self.name),
+                                _=>format!("sudo apt install -y {}",self.name),
+                            }
+
+                        },
+                        _=> {
+                            match self.package_tool.as_ref(){
+                                "yum"=> format!("yum install -y {}-{}", self.name, self.version),
+                                _=> format!("sudo apt install -y {}={}", self.name, self.version)
+                            }
+                        }
+                    };
+                    self.execute(comm);
+                    let status = match self.query().as_ref(){
+                        "Already installed" => "Installed successfully",
+                        _ => "Installed failed"
+                    };
+                    String::from(status)
+                }
+                _=>String::from("Already installed")
             }
-            _=>String::from("Already installed")
         }
     }
     fn install_by_version(&mut self, server_stream: &mut ServerStream) -> String {
         //get the version info for the software
         let result = self.software_version();
-        //tell the version info to client
-        server_stream.stream.write(result.as_bytes()).unwrap();
-        //get client's selected
-        self.version=server_stream.read_client();
-        self.install()
+        if result.len()==0{
+            String::from("Software not exists")
+        }
+        else{
+            //tell the version info to client
+            server_stream.stream.write(result.as_bytes()).unwrap();
+            //get client's selected
+            self.version=server_stream.read_client();
+            self.install()
+        }
     }
     fn update(&mut self) -> String {
-        let comm =  format!("{} update -y {}",self.package_tool,self.name);
-        let result = self.execute(comm);
-        let find_result =  match result.find("No packages marked for update")
-        {
-            Some(_v)=> "Update successfully",
-            None=> "Nothing need to update"
-        };
-        String::from(find_result)
+        if self.software_version().len()==0{
+            String::from("Software not exists")
+        }
+        else{
+            let comm = match self.package_tool.as_ref() {
+                "yum"=>format!("yum update -y {}",self.name),
+                _=>format!("sudo apt-get upgrade -y {}",self.name),
+            };
+            let result = self.execute(comm);
+            let find_result =  match result.find("No packages marked for update")
+            {
+                Some(_v)=> "Nothing need to update",
+                None=> "Update successfully"
+            };
+            String::from(find_result)
+        }
     }
     fn remove(&mut self) -> String {
-        let comm = format!("{} remove -y {}*", self.package_tool, self.name);
-        let result = self.execute(comm);
-        result
+        if self.software_version().len()==0{
+            String::from("Software not exists")
+        }
+        else{
+            let comm = format!("{} remove -y {}*", self.package_tool, self.name);
+            let result = self.execute(comm);
+            result
+        }
     }
     pub fn selected(&mut self, method:String, server_stream:&mut ServerStream) -> String{
         match method.as_ref() {
